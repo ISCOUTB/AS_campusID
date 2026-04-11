@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
 
-class HomeScreen extends StatelessWidget{
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   Widget quickAction({
@@ -42,16 +42,14 @@ class HomeScreen extends StatelessWidget{
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Campus ID'),
-      ),
+      appBar: AppBar(title: const Text('Campus ID')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Hola, Moisés 👋',
+              'Hola, Moisés ',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,

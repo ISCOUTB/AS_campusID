@@ -22,10 +22,11 @@ class LoginScreen extends StatelessWidget {
             child: Column(
               children: [
                 const SizedBox(height: 30),
-                const Icon(
-                  Icons.account_balance,
-                  color: Colors.white,
-                  size: 72,
+                Image.asset(
+                  'assets/images/image.png',
+                  width: 200,
+                  height: 200,
+                  fit: BoxFit.contain,
                 ),
                 const SizedBox(height: 20),
                 const Text(
@@ -39,10 +40,7 @@ class LoginScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 const Text(
                   'Acceso seguro al campus',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
                 const SizedBox(height: 40),
                 Card(
@@ -62,7 +60,9 @@ class LoginScreen extends StatelessWidget {
                           decoration: InputDecoration(
                             hintText: 'Contraseña',
                             prefixIcon: const Icon(Icons.lock_outline),
-                            suffixIcon: const Icon(Icons.visibility_off_outlined),
+                            suffixIcon: const Icon(
+                              Icons.visibility_off_outlined,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 24),
