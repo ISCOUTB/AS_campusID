@@ -21,6 +21,80 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text('Inicio'),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const CircleAvatar(
+              radius: 16,
+              backgroundColor: Colors.white24,
+              child: Icon(
+                Icons.person,
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+            onSelected: (value) {
+              if (value == 'perfil') {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Perfil del estudiante'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Nombre: ${user.name}'),
+                        const SizedBox(height: 6),
+                        Text('Código: ${user.code}'),
+                        const SizedBox(height: 6),
+                        Text('Programa: ${user.program}'),
+                        const SizedBox(height: 6),
+                        Text('Correo: ${user.email}'),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cerrar'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              if (value == 'cerrar_sesion') {
+                AuthService.logout();
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/',
+                  (route) => false,
+                );
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: 'perfil',
+                child: Row(
+                  children: [
+                    Icon(Icons.person_outline),
+                    SizedBox(width: 8),
+                    Text('Perfil'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'cerrar_sesion',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout),
+                    SizedBox(width: 8),
+                    Text('Cerrar sesión'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Center(
         child: ConstrainedBox(
@@ -47,7 +121,6 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
-
                 Card(
                   child: ListTile(
                     leading: Container(
@@ -68,9 +141,7 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 16),
-
                 Card(
                   child: ListTile(
                     leading: Container(
@@ -88,9 +159,7 @@ class HomeScreen extends StatelessWidget {
                     subtitle: const Text('Entrada - Hoy, 7:58 a. m.'),
                   ),
                 ),
-
                 const SizedBox(height: 24),
-
                 const Text(
                   'Resumen',
                   style: TextStyle(
@@ -99,9 +168,7 @@ class HomeScreen extends StatelessWidget {
                     color: AppTheme.darkBlue,
                   ),
                 ),
-
                 const SizedBox(height: 12),
-
                 Row(
                   children: [
                     Expanded(
@@ -155,9 +222,7 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 24),
-
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(18),

@@ -4,6 +4,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../core/theme/app_theme.dart';
 import '../services/auth_service.dart';
 import '../services/qr_service.dart';
+import '../services/access_service.dart';
 
 class VirtualIdScreen extends StatefulWidget {
   const VirtualIdScreen({super.key});
@@ -31,7 +32,10 @@ class _VirtualIdScreenState extends State<VirtualIdScreen> {
     if (user == null) return;
 
     setState(() {
-      qrData = QrService.generateQrData(user.code);
+      qrData = QrService.generateQrData(
+        studentCode: user.code,
+        studentName: user.name,
+      );
       secondsLeft = totalSeconds;
     });
   }
@@ -49,12 +53,13 @@ class _VirtualIdScreenState extends State<VirtualIdScreen> {
       }
     });
 
-    refreshTimer = Timer.periodic(const Duration(seconds: totalSeconds), (
-      timer,
-    ) {
-      if (!mounted) return;
-      _generateNewQr();
-    });
+    refreshTimer = Timer.periodic(
+      const Duration(seconds: totalSeconds),
+      (timer) {
+        if (!mounted) return;
+        _generateNewQr();
+      },
+    );
   }
 
   Color _countdownColor() {
@@ -71,6 +76,34 @@ class _VirtualIdScreenState extends State<VirtualIdScreen> {
 
   double _progressValue() {
     return secondsLeft / totalSeconds;
+  }
+
+  void _showProfileDialog(BuildContext context, dynamic user) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Perfil del estudiante'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Nombre: ${user.name}'),
+            const SizedBox(height: 6),
+            Text('Código: ${user.code}'),
+            const SizedBox(height: 6),
+            Text('Programa: ${user.program}'),
+            const SizedBox(height: 6),
+            Text('Correo: ${user.email}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -92,10 +125,59 @@ class _VirtualIdScreenState extends State<VirtualIdScreen> {
       );
     }
 
+    final isInside = AccessService.isStudentInside(user.code);
+    final nextAction = AccessService.nextActionLabel(user.code);
+
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text('Mi Carné'),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const CircleAvatar(
+              radius: 16,
+              backgroundColor: Colors.white24,
+              child: Icon(Icons.person, color: Colors.white, size: 18),
+            ),
+            onSelected: (value) {
+              if (value == 'perfil') {
+                _showProfileDialog(context, user);
+              }
+
+              if (value == 'cerrar_sesion') {
+                AuthService.logout();
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/',
+                  (route) => false,
+                );
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: 'perfil',
+                child: Row(
+                  children: [
+                    Icon(Icons.person_outline),
+                    SizedBox(width: 8),
+                    Text('Perfil'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'cerrar_sesion',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout),
+                    SizedBox(width: 8),
+                    Text('Cerrar sesión'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Center(
         child: ConstrainedBox(
@@ -177,7 +259,46 @@ class _VirtualIdScreenState extends State<VirtualIdScreen> {
                     ],
                   ),
                 ),
+
+                const SizedBox(height: 20),
+
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _statusBox(
+                                title: 'Estado actual',
+                                value: isInside ? 'Dentro del campus' : 'Fuera del campus',
+                                color: isInside ? Colors.orange : AppTheme.successGreen,
+                                icon: isInside ? Icons.location_on : Icons.logout,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _statusBox(
+                                title: 'Próximo escaneo',
+                                value: nextAction,
+                                color: nextAction == 'Entrada'
+                                    ? AppTheme.primaryBlue
+                                    : AppTheme.alertRed,
+                                icon: nextAction == 'Entrada'
+                                    ? Icons.login
+                                    : Icons.logout,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
                 const SizedBox(height: 24),
+
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(20),
@@ -192,10 +313,15 @@ class _VirtualIdScreenState extends State<VirtualIdScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Preséntalo al personal de acceso para registrar entrada o salida',
+                        Text(
+                          'Tu próximo escaneo registrará: $nextAction',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.black54),
+                          style: TextStyle(
+                            color: nextAction == 'Entrada'
+                                ? AppTheme.primaryBlue
+                                : AppTheme.alertRed,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         const SizedBox(height: 18),
                         AnimatedContainer(
@@ -221,7 +347,14 @@ class _VirtualIdScreenState extends State<VirtualIdScreen> {
                             version: QrVersions.auto,
                             size: 220,
                             backgroundColor: Colors.white,
-                            foregroundColor: Colors.black,
+                            eyeStyle: const QrEyeStyle(
+                              eyeShape: QrEyeShape.square,
+                              color: Colors.black,
+                            ),
+                            dataModuleStyle: const QrDataModuleStyle(
+                              dataModuleShape: QrDataModuleShape.square,
+                              color: Colors.black,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 20),
@@ -277,6 +410,47 @@ class _VirtualIdScreenState extends State<VirtualIdScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _statusBox({
+    required String title,
+    required String value,
+    required Color color,
+    required IconData icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Colors.black54,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 15,
+              color: color,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }

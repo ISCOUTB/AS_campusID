@@ -1,34 +1,60 @@
+import 'package:flutter/foundation.dart';
 import '../models/access_record.dart';
 
 class AccessService {
-  static final List<AccessRecord> _records = [];
-  static bool _insideCampus = false;
+  static final ValueNotifier<List<AccessRecord>> recordsNotifier =
+      ValueNotifier<List<AccessRecord>>([]);
 
-  static List<AccessRecord> get records => List.unmodifiable(_records);
+  static final Map<String, bool> _insideCampusByStudent = {};
 
-  static AccessRecord registerScan() {
+  static List<AccessRecord> get records => List.unmodifiable(recordsNotifier.value);
+
+  static bool isStudentInside(String studentCode) {
+    return _insideCampusByStudent[studentCode] ?? false;
+  }
+
+  static String nextActionLabel(String studentCode) {
+    return isStudentInside(studentCode) ? 'Salida' : 'Entrada';
+  }
+
+  static AccessRecord registerScan({
+    required String studentName,
+    required String studentCode,
+    required String authenticatedBy,
+  }) {
     final now = DateTime.now();
+    final isInside = _insideCampusByStudent[studentCode] ?? false;
 
-    if (!_insideCampus) {
-      final entry = AccessRecord(
+    late AccessRecord record;
+
+    if (!isInside) {
+      record = AccessRecord(
         type: 'Entrada',
         time: now,
         status: 'Permitido',
+        studentName: studentName,
+        studentCode: studentCode,
+        authenticatedBy: authenticatedBy,
       );
-      _records.insert(0, entry);
-      _insideCampus = true;
-      return entry;
+      _insideCampusByStudent[studentCode] = true;
     } else {
-      final exit = AccessRecord(
+      record = AccessRecord(
         type: 'Salida',
         time: now,
         status: 'Permitido',
+        studentName: studentName,
+        studentCode: studentCode,
+        authenticatedBy: authenticatedBy,
       );
-      _records.insert(0, exit);
-      _insideCampus = false;
-      return exit;
+      _insideCampusByStudent[studentCode] = false;
     }
+
+    recordsNotifier.value = [record, ...recordsNotifier.value];
+    return record;
   }
 
-  static bool get insideCampus => _insideCampus;
+  static void clearRecords() {
+    recordsNotifier.value = [];
+    _insideCampusByStudent.clear();
+  }
 }

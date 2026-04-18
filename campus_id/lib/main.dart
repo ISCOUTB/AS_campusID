@@ -3,6 +3,7 @@ import 'core/theme/app_theme.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_navigation_screen.dart';
 import 'screens/scan_access_screen.dart';
+import 'screens/auth_dashboard_screen.dart';
 
 void main() {
   runApp(const CampusIdApp());
@@ -22,6 +23,7 @@ class CampusIdApp extends StatelessWidget {
         '/': (context) => const LoginScreen(),
         '/main': (context) => const MainNavigationScreen(),
         '/scan': (context) => const ScanAccessScreen(),
+        '/auth-dashboard': (context) => const AuthDashboardScreen(),
       },
     );
   }

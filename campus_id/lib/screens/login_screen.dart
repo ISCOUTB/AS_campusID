@@ -56,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
 
         if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/scan');
+        Navigator.pushReplacementNamed(context, '/auth-dashboard');
       }
     } catch (e) {
       if (!mounted) return;
