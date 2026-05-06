@@ -1,4 +1,5 @@
 import '../models/user_model.dart';
+import 'supabase_service.dart';
 
 class AuthService {
   static UserModel? _currentUser;
@@ -11,7 +12,7 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    await Future.delayed(const Duration(seconds: 1));
+    await Future.delayed(const Duration(milliseconds: 500));
 
     if (email.isEmpty || password.isEmpty) {
       throw Exception('Debes completar todos los campos');
@@ -21,14 +22,17 @@ class AuthService {
       throw Exception('Debes usar tu correo institucional @utb.edu.co');
     }
 
-    _currentUser = UserModel(
-      name: 'Moisés David Cortina',
-      code: 'T00077043',
-      program: 'Ingeniería de Sistemas',
-      email: email.trim(),
-      role: UserRole.student,
-    );
+    final user = await SupabaseService.getUserByEmail(email.trim());
 
+    if (user == null) {
+      throw Exception('No se encontró el usuario en la base de datos');
+    }
+
+    if (user.role != UserRole.student) {
+      throw Exception('Este usuario no pertenece al rol estudiante');
+    }
+
+    _currentUser = user;
     return _currentUser!;
   }
 
@@ -36,20 +40,23 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    await Future.delayed(const Duration(seconds: 1));
+    await Future.delayed(const Duration(milliseconds: 500));
 
     if (email.isEmpty || password.isEmpty) {
       throw Exception('Debes completar todos los campos');
     }
 
-    _currentUser = UserModel(
-      name: 'Personal de Acceso',
-      code: 'AUTH-001',
-      program: 'Control de Acceso',
-      email: email.trim(),
-      role: UserRole.authenticator,
-    );
+    final user = await SupabaseService.getUserByEmail(email.trim());
 
+    if (user == null) {
+      throw Exception('No se encontró el usuario en la base de datos');
+    }
+
+    if (user.role != UserRole.authenticator) {
+      throw Exception('Este usuario no pertenece al rol autenticador');
+    }
+
+    _currentUser = user;
     return _currentUser!;
   }
 
