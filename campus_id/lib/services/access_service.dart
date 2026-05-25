@@ -1,60 +1,42 @@
-import 'package:flutter/foundation.dart';
 import '../models/access_record.dart';
+import 'supabase_service.dart';
 
 class AccessService {
-  static final ValueNotifier<List<AccessRecord>> recordsNotifier =
-      ValueNotifier<List<AccessRecord>>([]);
-
-  static final Map<String, bool> _insideCampusByStudent = {};
-
-  static List<AccessRecord> get records => List.unmodifiable(recordsNotifier.value);
-
-  static bool isStudentInside(String studentCode) {
-    return _insideCampusByStudent[studentCode] ?? false;
+  static Future<List<AccessRecord>> getRecords(String studentCode) async {
+    return await SupabaseService.getAccessLogs(studentCode);
   }
 
-  static String nextActionLabel(String studentCode) {
-    return isStudentInside(studentCode) ? 'Salida' : 'Entrada';
+  static Stream<List<AccessRecord>> recordsStream(String studentCode) {
+    return SupabaseService.accessLogsStream(studentCode);
   }
 
-  static AccessRecord registerScan({
+  static Future<bool> isStudentInside(String studentCode) async {
+    return await SupabaseService.isStudentInside(studentCode);
+  }
+
+  static Stream<bool> studentInsideStream(String studentCode) {
+    return SupabaseService.studentInsideStream(studentCode);
+  }
+
+  static Future<String> nextActionLabel(String studentCode) async {
+    final isInside = await isStudentInside(studentCode);
+    return isInside ? 'Salida' : 'Entrada';
+  }
+
+  static Stream<String> nextActionLabelStream(String studentCode) {
+    return studentInsideStream(studentCode)
+        .map((isInside) => isInside ? 'Salida' : 'Entrada');
+  }
+
+  static Future<AccessRecord> registerScan({
     required String studentName,
     required String studentCode,
     required String authenticatedBy,
-  }) {
-    final now = DateTime.now();
-    final isInside = _insideCampusByStudent[studentCode] ?? false;
-
-    late AccessRecord record;
-
-    if (!isInside) {
-      record = AccessRecord(
-        type: 'Entrada',
-        time: now,
-        status: 'Permitido',
-        studentName: studentName,
-        studentCode: studentCode,
-        authenticatedBy: authenticatedBy,
-      );
-      _insideCampusByStudent[studentCode] = true;
-    } else {
-      record = AccessRecord(
-        type: 'Salida',
-        time: now,
-        status: 'Permitido',
-        studentName: studentName,
-        studentCode: studentCode,
-        authenticatedBy: authenticatedBy,
-      );
-      _insideCampusByStudent[studentCode] = false;
-    }
-
-    recordsNotifier.value = [record, ...recordsNotifier.value];
-    return record;
-  }
-
-  static void clearRecords() {
-    recordsNotifier.value = [];
-    _insideCampusByStudent.clear();
+  }) async {
+    return await SupabaseService.registerScan(
+      studentName: studentName,
+      studentCode: studentCode,
+      authenticatedBy: authenticatedBy,
+    );
   }
 }

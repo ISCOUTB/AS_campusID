@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
+import '../services/auth_service.dart';
 import 'home_screen.dart';
 import 'virtual_id_screen.dart';
 import 'history_screen.dart';
@@ -22,36 +23,74 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(
-        index: currentIndex,
-        children: screens,
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentIndex,
-        onTap: (index) {
-          setState(() {
-            currentIndex = index;
-          });
-        },
-        selectedItemColor: AppTheme.primaryBlue,
-        unselectedItemColor: Colors.grey,
-        backgroundColor: Colors.white,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_rounded),
-            label: 'Inicio',
+    final user = AuthService.currentUser;
+
+    if (user == null || !AuthService.isStudent) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/login',
+          (route) => false,
+        );
+      });
+
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        body: IndexedStack(
+          index: currentIndex,
+          children: screens,
+        ),
+        bottomNavigationBar: Container(
+          decoration: const BoxDecoration(
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black12,
+                blurRadius: 16,
+                offset: Offset(0, -2),
+              ),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.badge_rounded),
-            label: 'Carné',
+          child: NavigationBar(
+            height: 76,
+            selectedIndex: currentIndex,
+            backgroundColor: Colors.white,
+            indicatorColor: AppTheme.primaryBlue.withValues(alpha: 0.12),
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+            onDestinationSelected: (index) {
+              setState(() {
+                currentIndex = index;
+              });
+            },
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_rounded),
+                selectedIcon:
+                    Icon(Icons.home_rounded, color: AppTheme.primaryBlue),
+                label: 'Inicio',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.badge_rounded),
+                selectedIcon:
+                    Icon(Icons.badge_rounded, color: AppTheme.primaryBlue),
+                label: 'Carné',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.history_rounded),
+                selectedIcon:
+                    Icon(Icons.history_rounded, color: AppTheme.primaryBlue),
+                label: 'Historial',
+              ),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history_rounded),
-            label: 'Historial',
-          ),
-        ],
+        ),
       ),
     );
   }

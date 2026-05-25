@@ -15,14 +15,68 @@ class SupabaseService {
     if (response == null) return null;
 
     return UserModel(
-      name: response['full_name'],
-      code: response['code'],
-      program: response['program'],
-      email: response['email'],
+      name: response['full_name'] as String,
+      code: response['code'] as String,
+      program: response['program'] as String,
+      email: response['email'] as String,
       role: response['role'] == 'student'
           ? UserRole.student
           : UserRole.authenticator,
     );
+  }
+
+  static Future<void> registerStudent({
+    required String name,
+    required String code,
+    required String program,
+    required String email,
+    required String password,
+  }) async {
+    final existingByEmail = await client
+        .from('profiles')
+        .select('email')
+        .eq('email', email)
+        .maybeSingle();
+
+    if (existingByEmail != null) {
+      throw Exception('Ya existe un usuario con ese correo');
+    }
+
+    final existingByCode = await client
+        .from('profiles')
+        .select('code')
+        .eq('code', code)
+        .maybeSingle();
+
+    if (existingByCode != null) {
+      throw Exception('Ya existe un usuario con ese código');
+    }
+
+    await client.from('profiles').insert({
+      'full_name': name,
+      'code': code,
+      'program': program,
+      'email': email,
+      'role': 'student',
+      'is_active': true,
+      'password_hint': password,
+    });
+
+    await client.from('student_status').upsert({
+      'student_code': code,
+      'is_inside': false,
+    });
+  }
+
+  static Future<bool> isProfileActive(String studentCode) async {
+    final response = await client
+        .from('profiles')
+        .select('is_active')
+        .eq('code', studentCode)
+        .maybeSingle();
+
+    if (response == null) return false;
+    return response['is_active'] as bool? ?? false;
   }
 
   static Future<bool> isStudentInside(String studentCode) async {
@@ -33,7 +87,18 @@ class SupabaseService {
         .maybeSingle();
 
     if (response == null) return false;
-    return response['is_inside'] ?? false;
+    return response['is_inside'] as bool? ?? false;
+  }
+
+  static Stream<bool> studentInsideStream(String studentCode) {
+    return client
+        .from('student_status')
+        .stream(primaryKey: ['student_code'])
+        .eq('student_code', studentCode)
+        .map((rows) {
+          if (rows.isEmpty) return false;
+          return rows.first['is_inside'] as bool? ?? false;
+        });
   }
 
   static Future<List<AccessRecord>> getAccessLogs(String studentCode) async {
@@ -46,15 +111,39 @@ class SupabaseService {
     return (response as List)
         .map(
           (item) => AccessRecord(
-            type: item['access_type'],
-            time: DateTime.parse(item['access_time']),
-            status: item['status'],
-            studentName: item['student_name'],
-            studentCode: item['student_code'],
-            authenticatedBy: item['authenticated_by'],
+            type: item['access_type'] as String,
+            time: DateTime.parse(item['access_time'] as String),
+            status: item['status'] as String,
+            studentName: item['student_name'] as String,
+            studentCode: item['student_code'] as String,
+            authenticatedBy: item['authenticated_by'] as String,
           ),
         )
         .toList();
+  }
+
+  static Stream<List<AccessRecord>> accessLogsStream(String studentCode) {
+    return client
+        .from('access_logs')
+        .stream(primaryKey: ['id'])
+        .eq('student_code', studentCode)
+        .map((rows) {
+          final records = rows
+              .map(
+                (item) => AccessRecord(
+                  type: item['access_type'] as String,
+                  time: DateTime.parse(item['access_time'] as String),
+                  status: item['status'] as String,
+                  studentName: item['student_name'] as String,
+                  studentCode: item['student_code'] as String,
+                  authenticatedBy: item['authenticated_by'] as String,
+                ),
+              )
+              .toList();
+
+          records.sort((a, b) => b.time.compareTo(a.time));
+          return records;
+        });
   }
 
   static Future<AccessRecord> registerScan({
@@ -64,9 +153,11 @@ class SupabaseService {
   }) async {
     final currentInside = await isStudentInside(studentCode);
     final nextType = currentInside ? 'Salida' : 'Entrada';
+    final now = DateTime.now().toIso8601String();
 
     await client.from('access_logs').insert({
       'access_type': nextType,
+      'access_time': now,
       'status': 'Permitido',
       'student_name': studentName,
       'student_code': studentCode,
@@ -80,7 +171,7 @@ class SupabaseService {
 
     return AccessRecord(
       type: nextType,
-      time: DateTime.now(),
+      time: DateTime.parse(now),
       status: 'Permitido',
       studentName: studentName,
       studentCode: studentCode,

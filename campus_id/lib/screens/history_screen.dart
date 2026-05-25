@@ -2,49 +2,25 @@ import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
 import '../services/access_service.dart';
 import '../services/auth_service.dart';
+import '../models/access_record.dart';
 
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
 
-  String _formatTime(DateTime time) {
+  String _formatHour(DateTime time) {
     final hour = time.hour > 12 ? time.hour - 12 : (time.hour == 0 ? 12 : time.hour);
     final minute = time.minute.toString().padLeft(2, '0');
     final period = time.hour >= 12 ? 'p. m.' : 'a. m.';
     return '$hour:$minute $period';
   }
 
-  void _showProfileDialog(BuildContext context, dynamic user) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Perfil del estudiante'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Nombre: ${user.name}'),
-            const SizedBox(height: 6),
-            Text('Código: ${user.code}'),
-            const SizedBox(height: 6),
-            Text('Programa: ${user.program}'),
-            const SizedBox(height: 6),
-            Text('Correo: ${user.email}'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-        ],
-      ),
-    );
+  String _formatDate(DateTime time) {
+    return '${time.day.toString().padLeft(2, '0')}/${time.month.toString().padLeft(2, '0')}/${time.year}';
   }
 
   @override
   Widget build(BuildContext context) {
     final user = AuthService.currentUser;
-    final records = AccessService.records;
 
     if (user == null) {
       return const Scaffold(
@@ -58,110 +34,288 @@ class HistoryScreen extends StatelessWidget {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text('Historial'),
-        actions: [
-          PopupMenuButton<String>(
-            icon: const CircleAvatar(
-              radius: 16,
-              backgroundColor: Colors.white24,
-              child: Icon(Icons.person, color: Colors.white, size: 18),
-            ),
-            onSelected: (value) {
-              if (value == 'perfil') {
-                _showProfileDialog(context, user);
-              }
+      ),
+      body: StreamBuilder<List<AccessRecord>>(
+        stream: AccessService.recordsStream(user.code),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-              if (value == 'cerrar_sesion') {
-                AuthService.logout();
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/',
-                  (route) => false,
-                );
-              }
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(
-                value: 'perfil',
-                child: Row(
-                  children: [
-                    Icon(Icons.person_outline),
-                    SizedBox(width: 8),
-                    Text('Perfil'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'cerrar_sesion',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout),
-                    SizedBox(width: 8),
-                    Text('Cerrar sesión'),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          if (snapshot.hasError) {
+            return Center(
+              child: Text('Error cargando historial: ${snapshot.error}'),
+            );
+          }
+
+          final records = snapshot.data ?? [];
+
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 900),
+              child: records.isEmpty
+                  ? ListView(
+                      padding: const EdgeInsets.all(24),
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(22),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 12,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Column(
+                            children: [
+                              Icon(
+                                Icons.history_toggle_off_rounded,
+                                size: 70,
+                                color: Colors.black26,
+                              ),
+                              SizedBox(height: 12),
+                              Text(
+                                'No hay registros todavía',
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.darkBlue,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Cuando el autenticador escanee tu QR, aquí verás los movimientos en tiempo real.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    )
+                  : ListView(
+                      padding: const EdgeInsets.all(22),
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [AppTheme.darkBlue, AppTheme.primaryBlue],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          child: Row(
+                            children: [
+                              const CircleAvatar(
+                                radius: 26,
+                                backgroundColor: Colors.white24,
+                                child: Icon(
+                                  Icons.timeline_rounded,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Historial de accesos',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${records.length} registros sincronizados en tiempo real',
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        ...records.map((item) {
+                          final isEntry = item.type == 'Entrada';
+                          final isAllowed = item.status == 'Permitido';
+                          final accentColor = isEntry
+                              ? AppTheme.primaryBlue
+                              : Colors.orange;
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 14),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(22),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 12,
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 148,
+                                  decoration: BoxDecoration(
+                                    color: accentColor,
+                                    borderRadius: const BorderRadius.only(
+                                      topLeft: Radius.circular(22),
+                                      bottomLeft: Radius.circular(22),
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(18),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            CircleAvatar(
+                                              backgroundColor:
+                                                  accentColor.withValues(
+                                                alpha: 0.12,
+                                              ),
+                                              child: Icon(
+                                                isEntry
+                                                    ? Icons.login_rounded
+                                                    : Icons.logout_rounded,
+                                                color: accentColor,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    item.type,
+                                                    style: const TextStyle(
+                                                      fontSize: 20,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color:
+                                                          AppTheme.darkBlue,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    '${_formatDate(item.time)} · ${_formatHour(item.time)}',
+                                                    style: const TextStyle(
+                                                      color: Colors.black54,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 12,
+                                                vertical: 7,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: isAllowed
+                                                    ? AppTheme.successGreen
+                                                        .withValues(alpha: 0.12)
+                                                    : AppTheme.alertRed
+                                                        .withValues(alpha: 0.12),
+                                                borderRadius:
+                                                    BorderRadius.circular(30),
+                                              ),
+                                              child: Text(
+                                                item.status,
+                                                style: TextStyle(
+                                                  color: isAllowed
+                                                      ? AppTheme.successGreen
+                                                      : AppTheme.alertRed,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 14),
+                                        Wrap(
+                                          spacing: 10,
+                                          runSpacing: 10,
+                                          children: [
+                                            _infoTag(
+                                              Icons.person_outline,
+                                              item.studentName,
+                                            ),
+                                            _infoTag(
+                                              Icons.badge_outlined,
+                                              item.studentCode,
+                                            ),
+                                            _infoTag(
+                                              Icons.verified_user_outlined,
+                                              item.authenticatedBy,
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _infoTag(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: AppTheme.darkBlue),
           const SizedBox(width: 8),
+          Text(
+            text,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
         ],
       ),
-      body: records.isEmpty
-          ? const Center(
-              child: Text('No hay registros todavía'),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(20),
-              itemCount: records.length,
-              itemBuilder: (context, index) {
-                final item = records[index];
-                final isOk = item.status == 'Permitido';
-
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 14),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: (isOk
-                              ? AppTheme.successGreen
-                              : AppTheme.alertRed)
-                          .withValues(alpha: 0.12),
-                      child: Icon(
-                        isOk ? Icons.check : Icons.warning_amber_rounded,
-                        color: isOk
-                            ? AppTheme.successGreen
-                            : AppTheme.alertRed,
-                      ),
-                    ),
-                    title: Text('${item.type} - ${item.studentName}'),
-                    subtitle: Text(
-                      '${item.studentCode} • ${_formatTime(item.time)}\nAutenticado por: ${item.authenticatedBy}',
-                    ),
-                    isThreeLine: true,
-                    trailing: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: (isOk
-                                ? AppTheme.successGreen
-                                : AppTheme.alertRed)
-                            .withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        item.status,
-                        style: TextStyle(
-                          color: isOk
-                              ? AppTheme.successGreen
-                              : AppTheme.alertRed,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
     );
   }
 }

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../core/theme/app_theme.dart';
@@ -14,17 +13,13 @@ class VirtualIdScreen extends StatefulWidget {
 }
 
 class _VirtualIdScreenState extends State<VirtualIdScreen> {
-  late String qrData;
-  int secondsLeft = 30;
-  static const int totalSeconds = 30;
-  Timer? countdownTimer;
-  Timer? refreshTimer;
+  String? qrData;
+  DateTime? generatedAt;
 
   @override
   void initState() {
     super.initState();
     _generateNewQr();
-    _startTimers();
   }
 
   void _generateNewQr() {
@@ -36,46 +31,16 @@ class _VirtualIdScreenState extends State<VirtualIdScreen> {
         studentCode: user.code,
         studentName: user.name,
       );
-      secondsLeft = totalSeconds;
+      generatedAt = DateTime.now();
     });
   }
 
-  void _startTimers() {
-    countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) return;
-
-      if (secondsLeft > 1) {
-        setState(() {
-          secondsLeft--;
-        });
-      } else {
-        _generateNewQr();
-      }
-    });
-
-    refreshTimer = Timer.periodic(
-      const Duration(seconds: totalSeconds),
-      (timer) {
-        if (!mounted) return;
-        _generateNewQr();
-      },
-    );
-  }
-
-  Color _countdownColor() {
-    if (secondsLeft <= 10) return AppTheme.alertRed;
-    if (secondsLeft <= 20) return Colors.orange;
-    return AppTheme.successGreen;
-  }
-
-  String _countdownText() {
-    if (secondsLeft <= 10) return 'Expira pronto';
-    if (secondsLeft <= 20) return 'QR activo';
-    return 'QR seguro';
-  }
-
-  double _progressValue() {
-    return secondsLeft / totalSeconds;
+  String _formatGeneratedAt(DateTime? time) {
+    if (time == null) return 'No generado';
+    final hour = time.hour > 12 ? time.hour - 12 : (time.hour == 0 ? 12 : time.hour);
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = time.hour >= 12 ? 'p. m.' : 'a. m.';
+    return '$hour:$minute $period';
   }
 
   void _showProfileDialog(BuildContext context, dynamic user) {
@@ -107,13 +72,6 @@ class _VirtualIdScreenState extends State<VirtualIdScreen> {
   }
 
   @override
-  void dispose() {
-    countdownTimer?.cancel();
-    refreshTimer?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final user = AuthService.currentUser;
 
@@ -124,9 +82,6 @@ class _VirtualIdScreenState extends State<VirtualIdScreen> {
         ),
       );
     }
-
-    final isInside = AccessService.isStudentInside(user.code);
-    final nextAction = AccessService.nextActionLabel(user.code);
 
     return Scaffold(
       appBar: AppBar(
@@ -179,275 +134,372 @@ class _VirtualIdScreenState extends State<VirtualIdScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppTheme.primaryBlue, AppTheme.darkBlue],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: const [
-                      BoxShadow(
-                        blurRadius: 18,
-                        offset: Offset(0, 8),
-                        color: Colors.black12,
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      const Icon(
-                        Icons.account_balance,
-                        size: 48,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        user.name,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 22,
+      body: StreamBuilder<bool>(
+        stream: AccessService.studentInsideStream(user.code),
+        builder: (context, insideSnapshot) {
+          final isInside = insideSnapshot.data ?? false;
+          final nextAction = isInside ? 'Salida' : 'Entrada';
+
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 960),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(22),
+                child: Column(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(22),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [AppTheme.primaryBlue, AppTheme.darkBlue],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Código: ${user.code}',
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        user.program,
-                        style: const TextStyle(color: Colors.white70),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        user.email,
-                        style: const TextStyle(color: Colors.white70),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 14),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.successGreen,
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        child: const Text(
-                          'ACTIVO',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: const [
+                          BoxShadow(
+                            blurRadius: 18,
+                            offset: Offset(0, 8),
+                            color: Colors.black12,
                           ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(18),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _statusBox(
-                                title: 'Estado actual',
-                                value: isInside ? 'Dentro del campus' : 'Fuera del campus',
-                                color: isInside ? Colors.orange : AppTheme.successGreen,
-                                icon: isInside ? Icons.location_on : Icons.logout,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 88,
+                            height: 88,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(22),
+                            ),
+                            child: const Icon(
+                              Icons.badge_rounded,
+                              size: 44,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 18),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  user.name,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 26,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Código: ${user.code}',
+                                  style: const TextStyle(color: Colors.white70),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  user.program,
+                                  style: const TextStyle(color: Colors.white70),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  user.email,
+                                  style: const TextStyle(color: Colors.white70),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 9,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            child: const Text(
+                              'CARNÉ ACTIVO',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _statusBox(
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isWide = constraints.maxWidth > 760;
+
+                        if (!isWide) {
+                          return Column(
+                            children: [
+                              _statusCard(
+                                title: 'Estado actual',
+                                value: isInside
+                                    ? 'Dentro del campus'
+                                    : 'Fuera del campus',
+                                icon: isInside
+                                    ? Icons.location_on_rounded
+                                    : Icons.logout_rounded,
+                                color: isInside
+                                    ? Colors.orange
+                                    : AppTheme.successGreen,
+                              ),
+                              const SizedBox(height: 14),
+                              _statusCard(
                                 title: 'Próximo escaneo',
                                 value: nextAction,
+                                icon: nextAction == 'Entrada'
+                                    ? Icons.login_rounded
+                                    : Icons.logout_rounded,
                                 color: nextAction == 'Entrada'
                                     ? AppTheme.primaryBlue
                                     : AppTheme.alertRed,
+                              ),
+                            ],
+                          );
+                        }
+
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: _statusCard(
+                                title: 'Estado actual',
+                                value: isInside
+                                    ? 'Dentro del campus'
+                                    : 'Fuera del campus',
+                                icon: isInside
+                                    ? Icons.location_on_rounded
+                                    : Icons.logout_rounded,
+                                color: isInside
+                                    ? Colors.orange
+                                    : AppTheme.successGreen,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: _statusCard(
+                                title: 'Próximo escaneo',
+                                value: nextAction,
                                 icon: nextAction == 'Entrada'
-                                    ? Icons.login
-                                    : Icons.logout,
+                                    ? Icons.login_rounded
+                                    : Icons.logout_rounded,
+                                color: nextAction == 'Entrada'
+                                    ? AppTheme.primaryBlue
+                                    : AppTheme.alertRed,
                               ),
                             ),
                           ],
-                        ),
-                      ],
+                        );
+                      },
                     ),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'Código QR dinámico',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.darkBlue,
+                    const SizedBox(height: 20),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(22),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: const [
+                          BoxShadow(
+                            blurRadius: 14,
+                            offset: Offset(0, 4),
+                            color: Colors.black12,
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Tu próximo escaneo registrará: $nextAction',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: nextAction == 'Entrada'
-                                ? AppTheme.primaryBlue
-                                : AppTheme.alertRed,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(22),
-                            border: Border.all(
-                              color: _countdownColor().withValues(alpha: 0.45),
-                              width: 2,
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Código QR del estudiante',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.darkBlue,
                             ),
-                            boxShadow: const [
-                              BoxShadow(
-                                blurRadius: 12,
-                                offset: Offset(0, 4),
-                                color: Colors.black12,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Tu próximo escaneo registrará: $nextAction',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: nextAction == 'Entrada'
+                                  ? AppTheme.primaryBlue
+                                  : AppTheme.alertRed,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          Container(
+                            padding: const EdgeInsets.all(18),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: AppTheme.primaryBlue.withValues(alpha: 0.20),
+                              ),
+                              boxShadow: const [
+                                BoxShadow(
+                                  blurRadius: 12,
+                                  offset: Offset(0, 4),
+                                  color: Colors.black12,
+                                ),
+                              ],
+                            ),
+                            child: qrData == null
+                                ? const SizedBox(
+                                    height: 240,
+                                    child: Center(
+                                      child: Text('QR no generado'),
+                                    ),
+                                  )
+                                : QrImageView(
+                                    data: qrData!,
+                                    version: QrVersions.auto,
+                                    size: 240,
+                                    backgroundColor: Colors.white,
+                                    eyeStyle: const QrEyeStyle(
+                                      eyeShape: QrEyeShape.square,
+                                      color: Colors.black,
+                                    ),
+                                    dataModuleStyle: const QrDataModuleStyle(
+                                      dataModuleShape: QrDataModuleShape.square,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                          ),
+                          const SizedBox(height: 18),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.schedule_rounded,
+                                  size: 18,
+                                  color: AppTheme.darkBlue,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Generado a las ${_formatGeneratedAt(generatedAt)}',
+                                  style: const TextStyle(
+                                    color: Colors.black87,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'El QR permanece visible hasta que generes uno nuevo.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.black54,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            alignment: WrapAlignment.center,
+                            children: [
+                              ElevatedButton.icon(
+                                onPressed: _generateNewQr,
+                                icon: const Icon(Icons.qr_code_2_rounded),
+                                label: const Text('Generar nuevo QR'),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  setState(() {
+                                    qrData = null;
+                                    generatedAt = null;
+                                  });
+                                },
+                                icon: const Icon(Icons.visibility_off_outlined),
+                                label: const Text('Ocultar QR'),
                               ),
                             ],
                           ),
-                          child: QrImageView(
-                            data: qrData,
-                            version: QrVersions.auto,
-                            size: 220,
-                            backgroundColor: Colors.white,
-                            eyeStyle: const QrEyeStyle(
-                              eyeShape: QrEyeShape.square,
-                              color: Colors.black,
-                            ),
-                            dataModuleStyle: const QrDataModuleStyle(
-                              dataModuleShape: QrDataModuleShape.square,
-                              color: Colors.black,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        Text(
-                          _countdownText(),
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: _countdownColor(),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: LinearProgressIndicator(
-                            value: _progressValue(),
-                            minHeight: 10,
-                            backgroundColor: Colors.grey.shade300,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              _countdownColor(),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 250),
-                          child: Text(
-                            '$secondsLeft s',
-                            key: ValueKey(secondsLeft),
-                            style: TextStyle(
-                              fontSize: 36,
-                              fontWeight: FontWeight.bold,
-                              color: _countdownColor(),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Se renueva automáticamente por seguridad',
-                          style: TextStyle(color: Colors.black54),
-                        ),
-                        const SizedBox(height: 16),
-                        OutlinedButton.icon(
-                          onPressed: _generateNewQr,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Actualizar ahora'),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 
-  Widget _statusBox({
+  Widget _statusCard({
     required String title,
     required String value,
-    required Color color,
     required IconData icon,
+    required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Colors.black54,
-              fontWeight: FontWeight.w600,
-            ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: const [
+          BoxShadow(
+            blurRadius: 14,
+            offset: Offset(0, 4),
+            color: Colors.black12,
           ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 15,
-              color: color,
-              fontWeight: FontWeight.bold,
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.black54,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
