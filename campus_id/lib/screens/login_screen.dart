@@ -446,8 +446,8 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-          if (isStudent) ...[
-            const SizedBox(height: 12),
+          const SizedBox(height: 12),
+          if (isStudent)
             SizedBox(
               width: double.infinity,
               height: 52,
@@ -459,7 +459,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 label: const Text('Registrar estudiante'),
               ),
             ),
-          ],
+          if (!isStudent)
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/register-authenticator');
+                },
+                icon: const Icon(Icons.admin_panel_settings_outlined),
+                label: const Text('Registrar autenticador'),
+              ),
+            ),
           const SizedBox(height: 26),
           Row(
             children: [

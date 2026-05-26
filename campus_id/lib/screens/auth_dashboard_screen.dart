@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
+import '../models/access_record.dart';
+import '../services/access_service.dart';
 import '../services/auth_service.dart';
 
 class AuthDashboardScreen extends StatelessWidget {
@@ -31,6 +33,33 @@ class AuthDashboardScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _formatDateTime(DateTime time) {
+    final hour =
+        time.hour > 12 ? time.hour - 12 : (time.hour == 0 ? 12 : time.hour);
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = time.hour >= 12 ? 'p. m.' : 'a. m.';
+    return '${time.day}/${time.month}/${time.year} - $hour:$minute $period';
+  }
+
+  Map<String, int> _buildTodayMetrics(List<AccessRecord> records) {
+    final now = DateTime.now();
+
+    final todayRecords = records.where((record) {
+      return record.time.year == now.year &&
+          record.time.month == now.month &&
+          record.time.day == now.day;
+    }).toList();
+
+    final entradas = todayRecords.where((r) => r.type == 'Entrada').length;
+    final salidas = todayRecords.where((r) => r.type == 'Salida').length;
+
+    return {
+      'total': todayRecords.length,
+      'entradas': entradas,
+      'salidas': salidas,
+    };
   }
 
   @override
@@ -107,273 +136,356 @@ class AuthDashboardScreen extends StatelessWidget {
             const SizedBox(width: 8),
           ],
         ),
-        body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 980),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(22),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [AppTheme.darkBlue, AppTheme.primaryBlue],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 18,
-                          offset: Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 84,
-                          height: 84,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(22),
+        body: StreamBuilder<List<AccessRecord>>(
+          stream: AccessService.authenticatorLogsStream(user.name),
+          builder: (context, snapshot) {
+            final records = snapshot.data ?? [];
+            final metrics = _buildTodayMetrics(records);
+            final lastRecord = records.isNotEmpty ? records.first : null;
+
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1080),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(22),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [AppTheme.darkBlue, AppTheme.primaryBlue],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                          child: const Icon(
-                            Icons.verified_user_rounded,
-                            size: 42,
-                            color: Colors.white,
-                          ),
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 18,
+                              offset: Offset(0, 6),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 18),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Bienvenido, ${user.name}',
-                                style: const TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 84,
+                              height: 84,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.14),
+                                borderRadius: BorderRadius.circular(22),
                               ),
-                              const SizedBox(height: 6),
-                              Text(
-                                user.email,
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 15,
-                                ),
+                              child: const Icon(
+                                Icons.verified_user_rounded,
+                                size: 42,
+                                color: Colors.white,
                               ),
-                              const SizedBox(height: 10),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
+                            ),
+                            const SizedBox(width: 18),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _topChip(
-                                    icon: Icons.security_rounded,
-                                    label: 'Control seguro',
+                                  Text(
+                                    'Bienvenido, ${user.name}',
+                                    style: const TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
                                   ),
-                                  _topChip(
-                                    icon: Icons.qr_code_scanner_rounded,
-                                    label: 'Escaneo activo',
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    user.email,
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      _topChip(
+                                        icon: Icons.security_rounded,
+                                        label: 'Control seguro',
+                                      ),
+                                      _topChip(
+                                        icon: Icons.qr_code_scanner_rounded,
+                                        label: 'Escaneo activo',
+                                      ),
+                                      _topChip(
+                                        icon: Icons.bolt_rounded,
+                                        label: 'Tiempo real',
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      _actionCard(
+                        context: context,
+                        icon: Icons.qr_code_scanner_rounded,
+                        title: 'Escanear QR',
+                        subtitle:
+                            'Inicia el lector para registrar entradas y salidas de estudiantes.',
+                        buttonLabel: 'Abrir escáner',
+                        onTap: () {
+                          Navigator.pushNamed(context, '/scan');
+                        },
+                        highlighted: true,
+                      ),
+
+                      const SizedBox(height: 18),
+
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isWide = constraints.maxWidth > 760;
+
+                          final metricsWidgets = [
+                            _metricCard(
+                              title: 'Accesos hoy',
+                              value: '${metrics['total']}',
+                              icon: Icons.assessment_outlined,
+                              color: AppTheme.primaryBlue,
+                            ),
+                            _metricCard(
+                              title: 'Entradas hoy',
+                              value: '${metrics['entradas']}',
+                              icon: Icons.login_rounded,
+                              color: AppTheme.successGreen,
+                            ),
+                            _metricCard(
+                              title: 'Salidas hoy',
+                              value: '${metrics['salidas']}',
+                              icon: Icons.logout_rounded,
+                              color: AppTheme.alertRed,
+                            ),
+                            _metricCard(
+                              title: 'Último escaneo',
+                              value: lastRecord == null
+                                  ? '--'
+                                  : lastRecord.studentCode,
+                              icon: Icons.history_toggle_off_rounded,
+                              color: Colors.orange,
+                            ),
+                          ];
+
+                          return GridView.count(
+                            crossAxisCount: isWide ? 4 : 2,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: isWide ? 1.15 : 1.2,
+                            children: metricsWidgets,
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Actividad reciente',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.darkBlue,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      if (snapshot.connectionState == ConnectionState.waiting &&
+                          records.isEmpty)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(24),
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
+                      else if (records.isEmpty)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 14,
+                                offset: Offset(0, 4),
+                              ),
                             ],
                           ),
+                          child: const Column(
+                            children: [
+                              Icon(
+                                Icons.inbox_outlined,
+                                size: 42,
+                                color: Colors.black38,
+                              ),
+                              SizedBox(height: 12),
+                              Text(
+                                'Aún no hay escaneos registrados',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.darkBlue,
+                                ),
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                'Cuando registres accesos, aparecerán aquí en tiempo real.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.black54,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        Column(
+                          children: records.take(6).map((record) {
+                            final isEntrada = record.type == 'Entrada';
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.all(18),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(22),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Colors.black12,
+                                    blurRadius: 14,
+                                    offset: Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 24,
+                                    backgroundColor: (isEntrada
+                                            ? AppTheme.successGreen
+                                            : AppTheme.alertRed)
+                                        .withValues(alpha: 0.12),
+                                    child: Icon(
+                                      isEntrada
+                                          ? Icons.login_rounded
+                                          : Icons.logout_rounded,
+                                      color: isEntrada
+                                          ? AppTheme.successGreen
+                                          : AppTheme.alertRed,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          record.studentName,
+                                          style: const TextStyle(
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppTheme.darkBlue,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Código: ${record.studentCode}',
+                                          style: const TextStyle(
+                                            color: Colors.black87,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          _formatDateTime(record.time),
+                                          style: const TextStyle(
+                                            color: Colors.black54,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: (isEntrada
+                                              ? AppTheme.successGreen
+                                              : AppTheme.alertRed)
+                                          .withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(18),
+                                    ),
+                                    child: Text(
+                                      record.type,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: isEntrada
+                                            ? AppTheme.successGreen
+                                            : AppTheme.alertRed,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isWide = constraints.maxWidth > 760;
-
-                      if (!isWide) {
-                        return Column(
-                          children: [
-                            _actionCard(
-                              context: context,
-                              icon: Icons.qr_code_scanner_rounded,
-                              title: 'Escanear QR',
-                              subtitle:
-                                  'Inicia el lector para registrar entradas y salidas de estudiantes.',
-                              buttonLabel: 'Abrir escáner',
-                              onTap: () {
-                                Navigator.pushNamed(context, '/scan');
-                              },
-                              highlighted: true,
-                            ),
-                            const SizedBox(height: 14),
-                            _actionCard(
-                              context: context,
-                              icon: Icons.history_rounded,
-                              title: 'Actividad reciente',
-                              subtitle:
-                                  'Vista rápida del flujo operativo del autenticador.',
-                              buttonLabel: 'Ver pronto',
-                              onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Pronto agregaremos actividad reciente',
-                                    ),
-                                  ),
-                                );
-                              },
+                      const SizedBox(height: 24),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(22),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 14,
+                              offset: Offset(0, 4),
                             ),
                           ],
-                        );
-                      }
-
-                      return Row(
-                        children: [
-                          Expanded(
-                            child: _actionCard(
-                              context: context,
-                              icon: Icons.qr_code_scanner_rounded,
-                              title: 'Escanear QR',
-                              subtitle:
-                                  'Inicia el lector para registrar entradas y salidas de estudiantes.',
-                              buttonLabel: 'Abrir escáner',
-                              onTap: () {
-                                Navigator.pushNamed(context, '/scan');
-                              },
-                              highlighted: true,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: _actionCard(
-                              context: context,
-                              icon: Icons.history_rounded,
-                              title: 'Actividad reciente',
-                              subtitle:
-                                  'Vista rápida del flujo operativo del autenticador.',
-                              buttonLabel: 'Ver pronto',
-                              onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Pronto agregaremos actividad reciente',
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Resumen operativo',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.darkBlue,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isWide = constraints.maxWidth > 760;
-
-                      if (!isWide) {
-                        return Column(
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _infoCard(
-                                    icon: Icons.check_circle_outline,
-                                    title: 'Validación',
-                                    subtitle: 'Respuesta rápida y clara',
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _infoCard(
-                                    icon: Icons.shield_outlined,
-                                    title: 'Seguridad',
-                                    subtitle: 'Escaneo controlado',
-                                  ),
-                                ),
-                              ],
+                            const Text(
+                              'Datos del autenticador',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.darkBlue,
+                              ),
                             ),
-                            const SizedBox(height: 12),
-                            _wideInfoPanel(user),
+                            const SizedBox(height: 16),
+                            _dataRow('Nombre', user.name),
+                            _dataRow('Código', user.code),
+                            _dataRow('Área', user.program),
+                            _dataRow('Correo', user.email),
                           ],
-                        );
-                      }
-
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: _infoCard(
-                                        icon: Icons.check_circle_outline,
-                                        title: 'Validación',
-                                        subtitle: 'Respuesta rápida y clara',
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: _infoCard(
-                                        icon: Icons.shield_outlined,
-                                        title: 'Seguridad',
-                                        subtitle: 'Escaneo controlado',
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: _infoCard(
-                                        icon: Icons.flash_on_rounded,
-                                        title: 'Operación',
-                                        subtitle: 'Flujo eficiente',
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: _infoCard(
-                                        icon: Icons.devices_rounded,
-                                        title: 'Prototipo',
-                                        subtitle: 'Preparado para demo',
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: _wideInfoPanel(user),
-                          ),
-                        ],
-                      );
-                    },
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
@@ -389,6 +501,7 @@ class AuthDashboardScreen extends StatelessWidget {
     bool highlighted = false,
   }) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         gradient: highlighted
@@ -417,13 +530,13 @@ class AuthDashboardScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CircleAvatar(
-            radius: 28,
+            radius: 30,
             backgroundColor: highlighted
                 ? AppTheme.primaryBlue.withValues(alpha: 0.12)
                 : Colors.grey.shade100,
             child: Icon(
               icon,
-              size: 28,
+              size: 30,
               color: highlighted ? AppTheme.primaryBlue : AppTheme.darkBlue,
             ),
           ),
@@ -466,10 +579,11 @@ class AuthDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _infoCard({
-    required IconData icon,
+  Widget _metricCard({
     required String title,
-    required String subtitle,
+    required String value,
+    required IconData icon,
+    required Color color,
   }) {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -485,63 +599,41 @@ class AuthDashboardScreen extends StatelessWidget {
         ],
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: AppTheme.primaryBlue, size: 30),
-          const SizedBox(height: 10),
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: color.withValues(alpha: 0.12),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 36,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.darkBlue,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
           Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 17,
-              color: AppTheme.darkBlue,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Colors.black54,
               fontSize: 14,
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _wideInfoPanel(dynamic user) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 14,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Datos del autenticador',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.darkBlue,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _dataRow('Nombre', user.name),
-          _dataRow('Código', user.code),
-          _dataRow('Área', user.program),
-          _dataRow('Correo', user.email),
         ],
       ),
     );

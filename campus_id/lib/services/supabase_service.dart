@@ -30,7 +30,6 @@ class SupabaseService {
     required String code,
     required String program,
     required String email,
-    required String password,
   }) async {
     final existingByEmail = await client
         .from('profiles')
@@ -59,12 +58,47 @@ class SupabaseService {
       'email': email,
       'role': 'student',
       'is_active': true,
-      'password_hint': password,
     });
 
     await client.from('student_status').upsert({
       'student_code': code,
       'is_inside': false,
+    });
+  }
+
+  static Future<void> registerAuthenticator({
+    required String name,
+    required String code,
+    required String area,
+    required String email,
+  }) async {
+    final existingByEmail = await client
+        .from('profiles')
+        .select('email')
+        .eq('email', email)
+        .maybeSingle();
+
+    if (existingByEmail != null) {
+      throw Exception('Ya existe un usuario con ese correo');
+    }
+
+    final existingByCode = await client
+        .from('profiles')
+        .select('code')
+        .eq('code', code)
+        .maybeSingle();
+
+    if (existingByCode != null) {
+      throw Exception('Ya existe un usuario con ese código');
+    }
+
+    await client.from('profiles').insert({
+      'full_name': name,
+      'code': code,
+      'program': area,
+      'email': email,
+      'role': 'authenticator',
+      'is_active': true,
     });
   }
 
@@ -144,6 +178,68 @@ class SupabaseService {
           records.sort((a, b) => b.time.compareTo(a.time));
           return records;
         });
+  }
+
+  static Stream<List<AccessRecord>> authenticatorLogsStream(
+    String authenticatorName,
+  ) {
+    return client
+        .from('access_logs')
+        .stream(primaryKey: ['id'])
+        .eq('authenticated_by', authenticatorName)
+        .map((rows) {
+          final records = rows
+              .map(
+                (item) => AccessRecord(
+                  type: item['access_type'] as String,
+                  time: DateTime.parse(item['access_time'] as String),
+                  status: item['status'] as String,
+                  studentName: item['student_name'] as String,
+                  studentCode: item['student_code'] as String,
+                  authenticatedBy: item['authenticated_by'] as String,
+                ),
+              )
+              .toList();
+
+          records.sort((a, b) => b.time.compareTo(a.time));
+          return records;
+        });
+  }
+
+  static Future<AccessRecord> processAccessQr({
+    required String studentName,
+    required String studentCode,
+    required String authenticatedBy,
+    required String qrToken,
+    required int qrIssuedAt,
+  }) async {
+    try {
+      final response = await client.rpc(
+        'process_access_qr',
+        params: {
+          'p_student_name': studentName,
+          'p_student_code': studentCode,
+          'p_authenticated_by': authenticatedBy,
+          'p_qr_token': qrToken,
+          'p_qr_issued_at': qrIssuedAt,
+        },
+      );
+
+      final row = (response as List).first;
+
+      return AccessRecord(
+        type: row['access_type'] as String,
+        time: DateTime.parse(row['access_time'] as String),
+        status: row['status'] as String,
+        studentName: row['student_name'] as String,
+        studentCode: row['student_code'] as String,
+        authenticatedBy: row['authenticated_by'] as String,
+      );
+    } on PostgrestException catch (e) {
+      throw Exception(e.message);
+    } catch (_) {
+      throw Exception('No fue posible procesar el QR');
+    }
   }
 
   static Future<AccessRecord> registerScan({

@@ -10,6 +10,12 @@ class AccessService {
     return SupabaseService.accessLogsStream(studentCode);
   }
 
+  static Stream<List<AccessRecord>> authenticatorLogsStream(
+    String authenticatorName,
+  ) {
+    return SupabaseService.authenticatorLogsStream(authenticatorName);
+  }
+
   static Future<bool> isStudentInside(String studentCode) async {
     return await SupabaseService.isStudentInside(studentCode);
   }
@@ -26,6 +32,22 @@ class AccessService {
   static Stream<String> nextActionLabelStream(String studentCode) {
     return studentInsideStream(studentCode)
         .map((isInside) => isInside ? 'Salida' : 'Entrada');
+  }
+
+  static Future<AccessRecord> processAccessQr({
+    required String studentName,
+    required String studentCode,
+    required String authenticatedBy,
+    required String qrToken,
+    required int qrIssuedAt,
+  }) async {
+    return await SupabaseService.processAccessQr(
+      studentName: studentName,
+      studentCode: studentCode,
+      authenticatedBy: authenticatedBy,
+      qrToken: qrToken,
+      qrIssuedAt: qrIssuedAt,
+    );
   }
 
   static Future<AccessRecord> registerScan({

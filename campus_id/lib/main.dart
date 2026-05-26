@@ -10,6 +10,7 @@ import 'screens/main_navigation_screen.dart';
 import 'screens/scan_access_screen.dart';
 import 'screens/auth_dashboard_screen.dart';
 import 'screens/register_student_screen.dart';
+import 'screens/register_authenticator_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,6 +50,14 @@ class CampusIdApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
       initialRoute: '/splash',
+      onGenerateInitialRoutes: (String initialRoute) {
+        return [
+          MaterialPageRoute(
+            builder: (_) => const SplashScreen(),
+            settings: const RouteSettings(name: '/splash'),
+          ),
+        ];
+      },
       onGenerateRoute: (settings) {
         switch (settings.name) {
           case '/':
@@ -57,6 +66,9 @@ class CampusIdApp extends StatelessWidget {
 
           case '/register-student':
             return _buildRoute(const RegisterStudentScreen(), settings);
+
+          case '/register-authenticator':
+            return _buildRoute(const RegisterAuthenticatorScreen(), settings);
 
           case '/splash':
             return _buildRoute(const SplashScreen(), settings);

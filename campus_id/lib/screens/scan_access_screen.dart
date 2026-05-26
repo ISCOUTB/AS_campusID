@@ -81,31 +81,62 @@ class _ScanAccessScreenState extends State<ScanAccessScreen> {
       return;
     }
 
-    final record = await AccessService.registerScan(
-      studentName: parsed['studentName']!,
-      studentCode: parsed['studentCode']!,
-      authenticatedBy: authenticator.name,
-    );
+    final issuedAtText = parsed['issuedAt']!;
+    final qrToken = parsed['token']!;
+    final studentName = parsed['studentName']!;
+    final studentCode = parsed['studentCode']!;
 
-    setState(() {
-      success = record.status == 'Permitido';
-      message = success ? 'Acceso permitido' : 'Acceso denegado';
-      detail =
-          '${record.type} registrada para ${record.studentName} (${record.studentCode})';
-      lastStudentName = record.studentName;
-      lastStudentCode = record.studentCode;
-      lastAccessType = record.type;
-    });
+    if (QrService.isQrExpired(issuedAtText)) {
+      setState(() {
+        success = false;
+        message = 'QR vencido';
+        detail = 'El QR superó el tiempo permitido. Genera uno nuevo.';
+        lastStudentName = studentName;
+        lastStudentCode = studentCode;
+        lastAccessType = null;
+      });
+      _isProcessing = false;
+      return;
+    }
 
-    if (!mounted) return;
+    try {
+      final record = await AccessService.processAccessQr(
+        studentName: studentName,
+        studentCode: studentCode,
+        authenticatedBy: authenticator.name,
+        qrToken: qrToken,
+        qrIssuedAt: int.parse(issuedAtText),
+      );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(detail),
-        backgroundColor:
-            success ? AppTheme.successGreen : AppTheme.alertRed,
-      ),
-    );
+      setState(() {
+        success = record.status == 'Permitido';
+        message = success ? 'Acceso permitido' : 'Acceso denegado';
+        detail =
+            '${record.type} registrada para ${record.studentName} (${record.studentCode})';
+        lastStudentName = record.studentName;
+        lastStudentCode = record.studentCode;
+        lastAccessType = record.type;
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(detail),
+          backgroundColor:
+              success ? AppTheme.successGreen : AppTheme.alertRed,
+        ),
+      );
+    } catch (e) {
+      setState(() {
+        success = false;
+        message = 'No fue posible registrar el acceso';
+        detail = e.toString().replaceFirst('Exception: ', '');
+        lastStudentName = studentName;
+        lastStudentCode = studentCode;
+        lastAccessType = null;
+      });
+    }
 
     _isProcessing = false;
   }

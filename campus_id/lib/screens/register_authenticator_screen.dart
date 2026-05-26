@@ -3,30 +3,37 @@ import 'package:flutter/services.dart';
 import '../core/theme/app_theme.dart';
 import '../services/supabase_service.dart';
 
-class RegisterStudentScreen extends StatefulWidget {
-  const RegisterStudentScreen({super.key});
+class RegisterAuthenticatorScreen extends StatefulWidget {
+  const RegisterAuthenticatorScreen({super.key});
 
   @override
-  State<RegisterStudentScreen> createState() => _RegisterStudentScreenState();
+  State<RegisterAuthenticatorScreen> createState() =>
+      _RegisterAuthenticatorScreenState();
 }
 
-class _RegisterStudentScreenState extends State<RegisterStudentScreen> {
+class _RegisterAuthenticatorScreenState
+    extends State<RegisterAuthenticatorScreen> {
   final _nameController = TextEditingController();
-  final _codeController = TextEditingController(text: 'T000');
-  final _programController = TextEditingController();
+  final _codeController = TextEditingController(text: 'AUTH-');
+  final _areaController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _adminCodeController = TextEditingController();
 
   bool _isPasswordVisible = false;
+  bool _isAdminCodeVisible = false;
   bool _isLoading = false;
+
+  static const String adminSecret = 'UTB-ADMIN-2025';
 
   @override
   void dispose() {
     _nameController.dispose();
     _codeController.dispose();
-    _programController.dispose();
+    _areaController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _adminCodeController.dispose();
     super.dispose();
   }
 
@@ -37,15 +44,16 @@ class _RegisterStudentScreenState extends State<RegisterStudentScreen> {
         .trimLeft();
   }
 
-  String _normalizeStudentCode(String value) {
-    var cleaned = value.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+  String _normalizeAuthenticatorCode(String value) {
+    var cleaned = value.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9-]'), '');
 
-    if (!cleaned.startsWith('T000')) {
-      cleaned = 'T000${cleaned.replaceFirst(RegExp(r'^T000?'), '').replaceFirst(RegExp(r'^T'), '')}';
+    if (!cleaned.startsWith('AUTH-')) {
+      cleaned =
+          'AUTH-${cleaned.replaceFirst(RegExp(r'^AUTH-?'), '').replaceFirst(RegExp(r'^AUTH'), '')}';
     }
 
-    if (cleaned.length < 4) {
-      cleaned = 'T000';
+    if (cleaned.length < 5) {
+      cleaned = 'AUTH-';
     }
 
     return cleaned;
@@ -53,16 +61,18 @@ class _RegisterStudentScreenState extends State<RegisterStudentScreen> {
 
   Future<void> _handleRegister() async {
     final fullName = _normalizeName(_nameController.text.trim());
-    final studentCode = _normalizeStudentCode(_codeController.text.trim());
-    final program = _programController.text.trim();
+    final code = _normalizeAuthenticatorCode(_codeController.text.trim());
+    final area = _areaController.text.trim();
     final email = _emailController.text.trim().toLowerCase();
     final password = _passwordController.text.trim();
+    final adminCode = _adminCodeController.text.trim();
 
     if (fullName.isEmpty ||
-        studentCode.isEmpty ||
-        program.isEmpty ||
+        code.isEmpty ||
+        area.isEmpty ||
         email.isEmpty ||
-        password.isEmpty) {
+        password.isEmpty ||
+        adminCode.isEmpty) {
       _showSnackBar('Debes completar todos los campos');
       return;
     }
@@ -72,18 +82,23 @@ class _RegisterStudentScreenState extends State<RegisterStudentScreen> {
       return;
     }
 
-    if (!studentCode.startsWith('T000')) {
-      _showSnackBar('El código estudiantil debe empezar con T000');
+    if (!code.startsWith('AUTH-')) {
+      _showSnackBar('El código del autenticador debe empezar con AUTH-');
       return;
     }
 
-    if (studentCode.length <= 4) {
-      _showSnackBar('Debes completar correctamente el código estudiantil');
+    if (code.length <= 5) {
+      _showSnackBar('Debes completar correctamente el código del autenticador');
       return;
     }
 
-    if (!email.endsWith('@utb.edu.co')) {
-      _showSnackBar('Debes usar un correo institucional @utb.edu.co');
+    if (!email.contains('@')) {
+      _showSnackBar('Debes ingresar un correo válido');
+      return;
+    }
+
+    if (adminCode != adminSecret) {
+      _showSnackBar('El código admin no es válido');
       return;
     }
 
@@ -92,10 +107,10 @@ class _RegisterStudentScreenState extends State<RegisterStudentScreen> {
     });
 
     try {
-      await SupabaseService.registerStudent(
+      await SupabaseService.registerAuthenticator(
         name: fullName,
-        code: studentCode,
-        program: program,
+        code: code,
+        area: area,
         email: email,
       );
 
@@ -103,7 +118,7 @@ class _RegisterStudentScreenState extends State<RegisterStudentScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Estudiante registrado correctamente'),
+          content: const Text('Autenticador registrado correctamente'),
           backgroundColor: AppTheme.successGreen,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -146,7 +161,7 @@ class _RegisterStudentScreenState extends State<RegisterStudentScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Registro de estudiante'),
+        title: const Text('Registro de autenticador'),
       ),
       body: Container(
         width: double.infinity,
@@ -185,7 +200,7 @@ class _RegisterStudentScreenState extends State<RegisterStudentScreen> {
                     ),
                     const SizedBox(height: 14),
                     const Text(
-                      'Crear cuenta de estudiante',
+                      'Crear autenticador',
                       style: TextStyle(
                         fontSize: 30,
                         fontWeight: FontWeight.bold,
@@ -195,7 +210,7 @@ class _RegisterStudentScreenState extends State<RegisterStudentScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Registra tus datos institucionales para usar Campus ID',
+                      'Registra personal autorizado para control de acceso',
                       style: TextStyle(
                         color: Colors.black54,
                         fontSize: 15,
@@ -231,12 +246,12 @@ class _RegisterStudentScreenState extends State<RegisterStudentScreen> {
                       controller: _codeController,
                       inputFormatters: [
                         FilteringTextInputFormatter.allow(
-                          RegExp(r'[a-zA-Z0-9]'),
+                          RegExp(r'[a-zA-Z0-9-]'),
                         ),
-                        LengthLimitingTextInputFormatter(12),
+                        LengthLimitingTextInputFormatter(14),
                       ],
                       onChanged: (value) {
-                        final normalized = _normalizeStudentCode(value);
+                        final normalized = _normalizeAuthenticatorCode(value);
                         if (normalized != value) {
                           _codeController.value = TextEditingValue(
                             text: normalized,
@@ -247,17 +262,18 @@ class _RegisterStudentScreenState extends State<RegisterStudentScreen> {
                         }
                       },
                       decoration: const InputDecoration(
-                        labelText: 'Código estudiantil',
-                        hintText: 'T00077043',
+                        labelText: 'Código del autenticador',
+                        hintText: 'AUTH-002',
                         prefixIcon: Icon(Icons.badge_outlined),
                       ),
                     ),
                     const SizedBox(height: 16),
                     TextField(
-                      controller: _programController,
+                      controller: _areaController,
                       decoration: const InputDecoration(
-                        labelText: 'Programa académico',
-                        prefixIcon: Icon(Icons.school_outlined),
+                        labelText: 'Área o dependencia',
+                        hintText: 'Control de Acceso',
+                        prefixIcon: Icon(Icons.apartment_outlined),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -265,8 +281,8 @@ class _RegisterStudentScreenState extends State<RegisterStudentScreen> {
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       decoration: const InputDecoration(
-                        labelText: 'Correo institucional',
-                        hintText: 'correo@utb.edu.co',
+                        labelText: 'Correo',
+                        hintText: 'auth@utb.edu.co',
                         prefixIcon: Icon(Icons.email_outlined),
                       ),
                     ),
@@ -291,6 +307,28 @@ class _RegisterStudentScreenState extends State<RegisterStudentScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _adminCodeController,
+                      obscureText: !_isAdminCodeVisible,
+                      decoration: InputDecoration(
+                        labelText: 'Código admin',
+                        prefixIcon:
+                            const Icon(Icons.admin_panel_settings_outlined),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _isAdminCodeVisible
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _isAdminCodeVisible = !_isAdminCodeVisible;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,
@@ -308,11 +346,11 @@ class _RegisterStudentScreenState extends State<RegisterStudentScreen> {
                                   ),
                                 ),
                               )
-                            : const Icon(Icons.person_add_alt_1_rounded),
+                            : const Icon(Icons.verified_user_outlined),
                         label: Text(
                           _isLoading
                               ? 'Registrando...'
-                              : 'Registrar estudiante',
+                              : 'Registrar autenticador',
                         ),
                       ),
                     ),
