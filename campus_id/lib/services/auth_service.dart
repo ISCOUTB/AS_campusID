@@ -24,15 +24,17 @@ class AuthService {
   }) async {
     await Future.delayed(const Duration(milliseconds: 500));
 
-    if (email.isEmpty || password.isEmpty) {
+    final normalizedEmail = email.trim().toLowerCase();
+
+    if (normalizedEmail.isEmpty || password.isEmpty) {
       throw Exception('Debes completar todos los campos');
     }
 
-    if (!email.trim().endsWith('@utb.edu.co')) {
+    if (!normalizedEmail.endsWith('@utb.edu.co')) {
       throw Exception('Debes usar tu correo institucional @utb.edu.co');
     }
 
-    final user = await SupabaseService.getUserByEmail(email.trim());
+    final user = await SupabaseService.getUserByEmail(normalizedEmail);
 
     if (user == null) {
       throw Exception('No se encontró el usuario en la base de datos');
@@ -53,11 +55,13 @@ class AuthService {
   }) async {
     await Future.delayed(const Duration(milliseconds: 500));
 
-    if (email.isEmpty || password.isEmpty) {
+    final normalizedEmail = email.trim().toLowerCase();
+
+    if (normalizedEmail.isEmpty || password.isEmpty) {
       throw Exception('Debes completar todos los campos');
     }
 
-    final user = await SupabaseService.getUserByEmail(email.trim());
+    final user = await SupabaseService.getUserByEmail(normalizedEmail);
 
     if (user == null) {
       throw Exception('No se encontró el usuario en la base de datos');

@@ -16,6 +16,15 @@ class AuthDashboardScreen extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (user.avatarUrl != null && user.avatarUrl!.isNotEmpty) ...[
+              Center(
+                child: CircleAvatar(
+                  radius: 38,
+                  backgroundImage: NetworkImage(user.avatarUrl!),
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
             Text('Nombre: ${user.name}'),
             const SizedBox(height: 6),
             Text('Código: ${user.code}'),
@@ -65,6 +74,30 @@ class AuthDashboardScreen extends StatelessWidget {
     };
   }
 
+  Widget _buildHeaderAvatar(dynamic user) {
+    if (user.avatarUrl != null && user.avatarUrl!.isNotEmpty) {
+      return CircleAvatar(
+        radius: 42,
+        backgroundColor: Colors.white.withValues(alpha: 0.18),
+        backgroundImage: NetworkImage(user.avatarUrl!),
+      );
+    }
+
+    return Container(
+      width: 84,
+      height: 84,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: const Icon(
+        Icons.verified_user_rounded,
+        size: 42,
+        color: Colors.white,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = AuthService.currentUser;
@@ -93,10 +126,16 @@ class AuthDashboardScreen extends StatelessWidget {
           automaticallyImplyLeading: false,
           actions: [
             PopupMenuButton<String>(
-              icon: const CircleAvatar(
+              icon: CircleAvatar(
                 radius: 16,
                 backgroundColor: Colors.white24,
-                child: Icon(Icons.person, color: Colors.white, size: 18),
+                backgroundImage:
+                    user.avatarUrl != null && user.avatarUrl!.isNotEmpty
+                        ? NetworkImage(user.avatarUrl!)
+                        : null,
+                child: user.avatarUrl == null || user.avatarUrl!.isEmpty
+                    ? const Icon(Icons.person, color: Colors.white, size: 18)
+                    : null,
               ),
               onSelected: (value) async {
                 if (value == 'perfil') {
@@ -174,19 +213,7 @@ class AuthDashboardScreen extends StatelessWidget {
                         ),
                         child: Row(
                           children: [
-                            Container(
-                              width: 84,
-                              height: 84,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.14),
-                                borderRadius: BorderRadius.circular(22),
-                              ),
-                              child: const Icon(
-                                Icons.verified_user_rounded,
-                                size: 42,
-                                color: Colors.white,
-                              ),
-                            ),
+                            _buildHeaderAvatar(user),
                             const SizedBox(width: 18),
                             Expanded(
                               child: Column(

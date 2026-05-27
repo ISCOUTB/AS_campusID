@@ -1,9 +1,11 @@
+import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 import '../models/access_record.dart';
 
 class SupabaseService {
   static final SupabaseClient client = Supabase.instance.client;
+  static const String avatarBucket = 'avatars';
 
   static Future<UserModel?> getUserByEmail(String email) async {
     final response = await client
@@ -19,10 +21,33 @@ class SupabaseService {
       code: response['code'] as String,
       program: response['program'] as String,
       email: response['email'] as String,
+      avatarUrl: response['avatar_url'] as String?,
       role: response['role'] == 'student'
           ? UserRole.student
           : UserRole.authenticator,
     );
+  }
+
+  static Future<String?> uploadAvatar({
+    required Uint8List bytes,
+    required String fileName,
+    required String userCode,
+  }) async {
+    final sanitizedName = fileName.replaceAll(' ', '_');
+    final path =
+        '$userCode/${DateTime.now().millisecondsSinceEpoch}_$sanitizedName';
+
+    await client.storage.from(avatarBucket).uploadBinary(
+      path,
+      bytes,
+      fileOptions: const FileOptions(
+        upsert: true,
+        contentType: 'image/jpeg',
+      ),
+    );
+
+    final publicUrl = client.storage.from(avatarBucket).getPublicUrl(path);
+    return publicUrl;
   }
 
   static Future<void> registerStudent({
@@ -30,6 +55,7 @@ class SupabaseService {
     required String code,
     required String program,
     required String email,
+    String? avatarUrl,
   }) async {
     final existingByEmail = await client
         .from('profiles')
@@ -56,6 +82,7 @@ class SupabaseService {
       'code': code,
       'program': program,
       'email': email,
+      'avatar_url': avatarUrl,
       'role': 'student',
       'is_active': true,
     });
@@ -71,6 +98,7 @@ class SupabaseService {
     required String code,
     required String area,
     required String email,
+    String? avatarUrl,
   }) async {
     final existingByEmail = await client
         .from('profiles')
@@ -97,6 +125,7 @@ class SupabaseService {
       'code': code,
       'program': area,
       'email': email,
+      'avatar_url': avatarUrl,
       'role': 'authenticator',
       'is_active': true,
     });

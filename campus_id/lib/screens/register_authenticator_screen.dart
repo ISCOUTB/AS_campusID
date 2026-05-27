@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/theme/app_theme.dart';
@@ -23,6 +24,8 @@ class _RegisterAuthenticatorScreenState
   bool _isPasswordVisible = false;
   bool _isAdminCodeVisible = false;
   bool _isLoading = false;
+  Uint8List? _avatarBytes;
+  String? _avatarFileName;
 
   static const String adminSecret = 'UTB-ADMIN-2025';
 
@@ -57,6 +60,27 @@ class _RegisterAuthenticatorScreenState
     }
 
     return cleaned;
+  }
+
+  Future<void> _pickAvatar() async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png'],
+      withData: true,
+    );
+
+    if (result == null || result.files.isEmpty) return;
+
+    final file = result.files.first;
+    if (file.bytes == null) {
+      _showSnackBar('No fue posible leer la imagen');
+      return;
+    }
+
+    setState(() {
+      _avatarBytes = file.bytes!;
+      _avatarFileName = file.name;
+    });
   }
 
   Future<void> _handleRegister() async {
@@ -107,11 +131,22 @@ class _RegisterAuthenticatorScreenState
     });
 
     try {
+      String? avatarUrl;
+
+      if (_avatarBytes != null && _avatarFileName != null) {
+        avatarUrl = await SupabaseService.uploadAvatar(
+          bytes: _avatarBytes!,
+          fileName: _avatarFileName!,
+          userCode: code,
+        );
+      }
+
       await SupabaseService.registerAuthenticator(
         name: fullName,
         code: code,
         area: area,
         email: email,
+        avatarUrl: avatarUrl,
       );
 
       if (!mounted) return;
@@ -154,6 +189,27 @@ class _RegisterAuthenticatorScreenState
           borderRadius: BorderRadius.circular(14),
         ),
       ),
+    );
+  }
+
+  Widget _buildAvatarPreview() {
+    return Column(
+      children: [
+        CircleAvatar(
+          radius: 46,
+          backgroundColor: Colors.grey.shade200,
+          backgroundImage: _avatarBytes != null ? MemoryImage(_avatarBytes!) : null,
+          child: _avatarBytes == null
+              ? const Icon(Icons.person, size: 40, color: Colors.black45)
+              : null,
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: _pickAvatar,
+          icon: const Icon(Icons.photo_camera_outlined),
+          label: Text(_avatarBytes == null ? 'Adjuntar foto' : 'Cambiar foto'),
+        ),
+      ],
     );
   }
 
@@ -217,7 +273,9 @@ class _RegisterAuthenticatorScreenState
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 24),
+                    _buildAvatarPreview(),
+                    const SizedBox(height: 24),
                     TextField(
                       controller: _nameController,
                       inputFormatters: [
@@ -245,9 +303,7 @@ class _RegisterAuthenticatorScreenState
                     TextField(
                       controller: _codeController,
                       inputFormatters: [
-                        FilteringTextInputFormatter.allow(
-                          RegExp(r'[a-zA-Z0-9-]'),
-                        ),
+                        FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9-]')),
                         LengthLimitingTextInputFormatter(14),
                       ],
                       onChanged: (value) {

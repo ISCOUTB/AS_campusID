@@ -5,6 +5,7 @@ class UserModel {
   final String code;
   final String program;
   final String email;
+  final String? avatarUrl;
   final UserRole role;
 
   const UserModel({
@@ -13,5 +14,6 @@ class UserModel {
     required this.program,
     required this.email,
     required this.role,
+    this.avatarUrl,
   });
 }
