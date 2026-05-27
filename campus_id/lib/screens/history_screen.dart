@@ -8,14 +8,18 @@ class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
 
   String _formatHour(DateTime time) {
-    final hour = time.hour > 12 ? time.hour - 12 : (time.hour == 0 ? 12 : time.hour);
-    final minute = time.minute.toString().padLeft(2, '0');
-    final period = time.hour >= 12 ? 'p. m.' : 'a. m.';
+    final localTime = time.toLocal();
+    final hour = localTime.hour > 12
+        ? localTime.hour - 12
+        : (localTime.hour == 0 ? 12 : localTime.hour);
+    final minute = localTime.minute.toString().padLeft(2, '0');
+    final period = localTime.hour >= 12 ? 'p. m.' : 'a. m.';
     return '$hour:$minute $period';
   }
 
   String _formatDate(DateTime time) {
-    return '${time.day.toString().padLeft(2, '0')}/${time.month.toString().padLeft(2, '0')}/${time.year}';
+    final localTime = time.toLocal();
+    return '${localTime.day.toString().padLeft(2, '0')}/${localTime.month.toString().padLeft(2, '0')}/${localTime.year}';
   }
 
   @override

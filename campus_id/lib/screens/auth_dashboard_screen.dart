@@ -36,20 +36,23 @@ class AuthDashboardScreen extends StatelessWidget {
   }
 
   String _formatDateTime(DateTime time) {
-    final hour =
-        time.hour > 12 ? time.hour - 12 : (time.hour == 0 ? 12 : time.hour);
-    final minute = time.minute.toString().padLeft(2, '0');
-    final period = time.hour >= 12 ? 'p. m.' : 'a. m.';
-    return '${time.day}/${time.month}/${time.year} - $hour:$minute $period';
+    final localTime = time.toLocal();
+    final hour = localTime.hour > 12
+        ? localTime.hour - 12
+        : (localTime.hour == 0 ? 12 : localTime.hour);
+    final minute = localTime.minute.toString().padLeft(2, '0');
+    final period = localTime.hour >= 12 ? 'p. m.' : 'a. m.';
+    return '${localTime.day}/${localTime.month}/${localTime.year} - $hour:$minute $period';
   }
 
   Map<String, int> _buildTodayMetrics(List<AccessRecord> records) {
     final now = DateTime.now();
 
     final todayRecords = records.where((record) {
-      return record.time.year == now.year &&
-          record.time.month == now.month &&
-          record.time.day == now.day;
+      final localTime = record.time.toLocal();
+      return localTime.year == now.year &&
+          localTime.month == now.month &&
+          localTime.day == now.day;
     }).toList();
 
     final entradas = todayRecords.where((r) => r.type == 'Entrada').length;
@@ -231,7 +234,6 @@ class AuthDashboardScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 24),
-
                       _actionCard(
                         context: context,
                         icon: Icons.qr_code_scanner_rounded,
@@ -244,9 +246,7 @@ class AuthDashboardScreen extends StatelessWidget {
                         },
                         highlighted: true,
                       ),
-
                       const SizedBox(height: 18),
-
                       LayoutBuilder(
                         builder: (context, constraints) {
                           final isWide = constraints.maxWidth > 760;
@@ -291,7 +291,6 @@ class AuthDashboardScreen extends StatelessWidget {
                           );
                         },
                       ),
-
                       const SizedBox(height: 24),
                       const Text(
                         'Actividad reciente',

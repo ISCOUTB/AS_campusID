@@ -27,11 +27,12 @@ class _HomeScreenState extends State<HomeScreen> {
   String _formatLastAccess(AccessRecord? record) {
     if (record == null) return 'Sin registros aún';
 
-    final hour = record.time.hour > 12
-        ? record.time.hour - 12
-        : (record.time.hour == 0 ? 12 : record.time.hour);
-    final minute = record.time.minute.toString().padLeft(2, '0');
-    final period = record.time.hour >= 12 ? 'p. m.' : 'a. m.';
+    final localTime = record.time.toLocal();
+    final hour = localTime.hour > 12
+        ? localTime.hour - 12
+        : (localTime.hour == 0 ? 12 : localTime.hour);
+    final minute = localTime.minute.toString().padLeft(2, '0');
+    final period = localTime.hour >= 12 ? 'p. m.' : 'a. m.';
 
     return '${record.type} · Hoy, $hour:$minute $period';
   }
@@ -439,9 +440,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      isInside ? 'Actualmente dentro del campus' : 'Actualmente fuera del campus',
+                      isInside
+                          ? 'Actualmente dentro del campus'
+                          : 'Actualmente fuera del campus',
                       style: TextStyle(
-                        color: isInside ? Colors.orange : AppTheme.successGreen,
+                        color: isInside
+                            ? Colors.orange
+                            : AppTheme.successGreen,
                         fontWeight: FontWeight.w700,
                       ),
                     ),

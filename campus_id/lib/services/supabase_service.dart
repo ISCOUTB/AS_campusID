@@ -146,7 +146,7 @@ class SupabaseService {
         .map(
           (item) => AccessRecord(
             type: item['access_type'] as String,
-            time: DateTime.parse(item['access_time'] as String),
+            time: DateTime.parse(item['access_time'] as String).toLocal(),
             status: item['status'] as String,
             studentName: item['student_name'] as String,
             studentCode: item['student_code'] as String,
@@ -166,7 +166,7 @@ class SupabaseService {
               .map(
                 (item) => AccessRecord(
                   type: item['access_type'] as String,
-                  time: DateTime.parse(item['access_time'] as String),
+                  time: DateTime.parse(item['access_time'] as String).toLocal(),
                   status: item['status'] as String,
                   studentName: item['student_name'] as String,
                   studentCode: item['student_code'] as String,
@@ -192,7 +192,7 @@ class SupabaseService {
               .map(
                 (item) => AccessRecord(
                   type: item['access_type'] as String,
-                  time: DateTime.parse(item['access_time'] as String),
+                  time: DateTime.parse(item['access_time'] as String).toLocal(),
                   status: item['status'] as String,
                   studentName: item['student_name'] as String,
                   studentCode: item['student_code'] as String,
@@ -229,7 +229,7 @@ class SupabaseService {
 
       return AccessRecord(
         type: row['access_type'] as String,
-        time: DateTime.parse(row['access_time'] as String),
+        time: DateTime.parse(row['access_time'] as String).toLocal(),
         status: row['status'] as String,
         studentName: row['student_name'] as String,
         studentCode: row['student_code'] as String,
@@ -267,7 +267,7 @@ class SupabaseService {
 
     return AccessRecord(
       type: nextType,
-      time: DateTime.parse(now),
+      time: DateTime.parse(now).toLocal(),
       status: 'Permitido',
       studentName: studentName,
       studentCode: studentCode,
